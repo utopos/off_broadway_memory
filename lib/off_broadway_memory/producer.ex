@@ -129,7 +129,7 @@ defmodule OffBroadwayMemory.Producer do
     requeue =
       failed
       |> Enum.filter(&ack?(&1, requeue?))
-      |> Enum.map(& &1.data)
+      |> Enum.map(&initial_data/1)
 
     Buffer.push(ack_options.buffer, requeue)
 
@@ -167,6 +167,11 @@ defmodule OffBroadwayMemory.Producer do
     {items, %{state | demand: demand - length(items)}}
   end
 
+  defp initial_data(message) do
+    {_, _, %{initial_data: data}} = message.acknowledger
+    data
+  end
+
   defp transform_messages(messages, ack_ref) do
     Enum.map(messages, &transform_message(&1, ack_ref))
   end
@@ -174,7 +179,7 @@ defmodule OffBroadwayMemory.Producer do
   defp transform_message(message, ack_ref) do
     %Broadway.Message{
       data: message,
-      acknowledger: {__MODULE__, ack_ref, %{}}
+      acknowledger: {__MODULE__, ack_ref, %{initial_data: message}}
     }
   end
 
