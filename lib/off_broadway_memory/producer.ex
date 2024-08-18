@@ -154,6 +154,31 @@ defmodule OffBroadwayMemory.Producer do
     {:noreply, items, state}
   end
 
+  @impl Broadway.Producer
+  def prepare_for_start(_module, broadway_options) do
+    buffer = extract_buffer_name(broadway_options)
+
+    if buffer == nil do
+      raise ArgumentError,
+            "invalid configuration given to OffBroadwayMemory.Producer.prepare_for_start/1, required :buffer option not found, received options: #{inspect(broadway_options)}"
+    end
+
+    child_spec = {OffBroadwayMemory.Buffer, [name: buffer]}
+    children = [child_spec]
+    {children, broadway_options}
+  end
+
+  defp extract_buffer_name(broadway_options) do
+    with {:ok, producer} <- Keyword.fetch(broadway_options, :producer),
+         {:ok, module_tuple} <- Keyword.fetch(producer, :module),
+         {_modue_name, module_opts} <- module_tuple,
+         {:ok, buffer_name} <- Keyword.fetch(module_opts, :buffer) do
+      buffer_name
+    else
+      _ -> nil
+    end
+  end
+
   defp resolve_demand(new_demand \\ 0, %{demand: pending_demand} = state) do
     demand = new_demand + pending_demand
     metadata = %{name: state.ack_ref, demand: demand}
